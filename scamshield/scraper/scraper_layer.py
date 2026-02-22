@@ -1,96 +1,96 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-from urllib.parse import urljoin, urlparse
 
 
-class WebsiteData:
-    """
-    Central structured data container.
-    All 15 layers must use this object only.
-    """
-
-    def __init__(
-        self,
-        url,
-        domain,
-        html,
-        text,
-        title,
-        meta_description,
-        emails,
-        phone_numbers,
-        internal_links
-    ):
-        self.url = url
-        self.domain = domain
-        self.html = html
-        self.text = text
-        self.title = title
-        self.meta_description = meta_description
-        self.emails = emails
-        self.phone_numbers = phone_numbers
-        self.internal_links = internal_links
-        self.internal_link_count = len(internal_links)
-
-
-def scrape_website(url):
-
+def fetch_website_data(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
         html = response.text
         soup = BeautifulSoup(html, "html.parser")
 
-        # Remove unwanted tags
-        for tag in soup(["script", "style", "noscript"]):
-            tag.decompose()
+        # ----------------------------
+        # Extract visible text
+        # ----------------------------
+        text = soup.get_text(separator=" ", strip=True)
 
-        text = soup.get_text(separator=" ")
-        text = re.sub(r"\s+", " ", text).strip()
-
-        # Extract domain
-        parsed = urlparse(url)
-        domain = parsed.netloc
-
+        # ----------------------------
         # Extract title
+        # ----------------------------
         title = soup.title.string.strip() if soup.title else ""
 
-        # Extract meta description
-        meta_tag = soup.find("meta", attrs={"name": "description"})
-        meta_description = meta_tag["content"].strip() if meta_tag and "content" in meta_tag.attrs else ""
+        # ----------------------------
+        # Extract meta descriptions
+        # ----------------------------
+        meta_descriptions = []
+        for meta in soup.find_all("meta"):
+            if meta.get("name") == "description" or meta.get("property") == "og:description":
+                if meta.get("content"):
+                    meta_descriptions.append(meta.get("content"))
 
-        # Extract emails
-        email_pattern = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
-        emails = list(set(re.findall(email_pattern, text)))
-
-        # Extract phone numbers
-        phone_pattern = r"\+?\d[\d\s\-]{8,15}"
-        phone_numbers = list(set(re.findall(phone_pattern, text)))
-
-        # Extract internal links
-        internal_links = []
-        for tag in soup.find_all("a", href=True):
-            full_link = urljoin(url, tag["href"])
-            if urlparse(full_link).netloc == domain:
-                internal_links.append(full_link)
-
-        internal_links = list(set(internal_links))
-
-        return WebsiteData(
-            url=url,
-            domain=domain,
-            html=html,
-            text=text,
-            title=title,
-            meta_description=meta_description,
-            emails=emails,
-            phone_numbers=phone_numbers,
-            internal_links=internal_links
+        # ----------------------------
+        # Extract Emails
+        # ----------------------------
+        emails = re.findall(
+            r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
+            html
         )
+        emails = list(set(emails))
+
+        # ----------------------------
+        # Extract Valid Phone Numbers (Improved)
+        # ----------------------------
+        raw_phones = re.findall(r'\+?\d[\d\s\-]{8,14}\d', html)
+
+        cleaned_phones = []
+
+        for phone in raw_phones:
+            phone = phone.strip()
+
+            # Remove non-digits
+            digits_only = re.sub(r'\D', '', phone)
+
+            # Keep only realistic phone numbers (10–13 digits)
+            if 10 <= len(digits_only) <= 13:
+                cleaned_phones.append(phone)
+
+        phones = list(set(cleaned_phones))
+
+        # ----------------------------
+        # Extract Forms
+        # ----------------------------
+        forms = soup.find_all("form")
+        form_count = len(forms)
+
+        # ----------------------------
+        # Extract Scripts
+        # ----------------------------
+        scripts = soup.find_all("script")
+        script_count = len(scripts)
+
+        # ----------------------------
+        # Extract Links
+        # ----------------------------
+        links = [a.get("href") for a in soup.find_all("a", href=True)]
+
+        return {
+            "url": url,
+            "title": title,
+            "text": text,
+            "meta_descriptions": meta_descriptions,
+            "emails": emails,
+            "phones": phones,
+            "links": links,
+            "form_count": form_count,
+            "script_count": script_count
+        }
 
     except Exception as e:
-        print(f"[ERROR] Scraping failed: {e}")
+        print("Error fetching website:", e)
         return None
