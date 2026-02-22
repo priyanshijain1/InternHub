@@ -1,31 +1,17 @@
-def calculate_rule_score(domain_risk, payment_flag, ssl_risk,
-                         email_risk, nlp_risk,
-                         pattern_boost, complaint_risk,
-                         similarity_risk, geo_risk,
-                         contact_risk, interview_risk,
-                         company_risk, linguistic_risk,
-                         recruiter_risk, document_risk):
+def calculate_rule_score(features: dict):
 
-    score = 0
+    score = 0.0
 
-    score += domain_risk
-    score += ssl_risk
-    score += email_risk
-    score += nlp_risk
-    score += pattern_boost
-    score += complaint_risk
-    score += similarity_risk
-    score += geo_risk
-    score += contact_risk
-    score += interview_risk
-    score += company_risk
-    score += linguistic_risk
-    score += recruiter_risk
-    score += document_risk
+    # Add all numeric feature values except payment_flag special handling
+    for key, value in features.items():
+        if key != "payment_flag":
+            score += value
 
-    if payment_flag == 1:
+    # Payment flag special boost
+    if features.get("payment_flag", 0) == 1:
         score += 0.4
 
+    # Cap final score
     if score > 1:
         score = 1.0
 
