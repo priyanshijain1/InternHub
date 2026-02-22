@@ -6,7 +6,7 @@ def check_company_authenticity(text, title, links, domain_risk):
     risk_score = 0.0
 
     # ----------------------------
-    # 1️⃣ About Page Link Check
+    # About Page Link Check
     # ----------------------------
     about_link_found = any(
         "about" in (link.lower() if link else "")
@@ -18,7 +18,7 @@ def check_company_authenticity(text, title, links, domain_risk):
         risk_score += 0.1
 
     # ----------------------------
-    # 2️⃣ Company Registration Pattern (Only if domain is new)
+    #  Company Registration Pattern (Only if domain is new)
     # ----------------------------
     if domain_risk > 0.3:  # only check for new domains
         cin_pattern = r"[A-Z]{1}\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}"

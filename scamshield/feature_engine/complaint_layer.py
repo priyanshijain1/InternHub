@@ -17,14 +17,14 @@ def check_complaint_database(url, emails, phones):
         risk_score = 0.0
 
         # ----------------------------
-        # 1️⃣ Exact Domain Match
+        #  Exact Domain Match
         # ----------------------------
         if domain in df["domain"].values:
             print("⚠ Exact domain match found in complaint DB")
             risk_score += 0.6
 
         # ----------------------------
-        # 2️⃣ Similar Domain Match (Fuzzy)
+        #  Similar Domain Match (Fuzzy)
         # ----------------------------
         for reported_domain in df["domain"]:
             sim = similarity(domain, reported_domain)
@@ -34,7 +34,7 @@ def check_complaint_database(url, emails, phones):
                 break
 
         # ----------------------------
-        # 3️⃣ Phone Number Match
+        # Phone Number Match
         # ----------------------------
         for phone in phones:
             if phone in df["reported_phone"].values:
@@ -43,7 +43,7 @@ def check_complaint_database(url, emails, phones):
                 break
 
         # ----------------------------
-        # 4️⃣ Email Match
+        #  Email Match
         # ----------------------------
         for email in emails:
             if email in df["reported_email"].values:
