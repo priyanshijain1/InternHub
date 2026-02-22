@@ -19,120 +19,131 @@ from feature_engine.document_layer import check_document_scam_signals
 from risk_engine.rule_engine import calculate_rule_score
 
 
+def run_detection(url, manual_text=None):
+    """
+    If manual_text is provided → dataset mode (no scraping).
+    Otherwise → normal website detection mode.
+    """
+
+    # -----------------------------
+    # Dataset Mode (NO scraping)
+    # -----------------------------
+    if manual_text is not None:
+        data = {
+            "url": url,
+            "title": "",
+            "text": manual_text,
+            "meta_descriptions": [],
+            "emails": [],
+            "phones": [],
+            "links": [],
+            "form_count": 0,
+            "script_count": 0
+        }
+    else:
+        data = fetch_website_data(url)
+        if not data:
+            return None, None
+
+    # -----------------------------
+    # Feature Extraction
+    # -----------------------------
+    domain_risk, age_info = check_domain_age(url)
+    payment_flag = check_payment_keywords(data["text"])
+    ssl_risk = check_ssl_certificate(url)
+    email_risk = check_free_email(data["emails"])
+    nlp_risk = check_urgency_language(data["text"])
+
+    pattern_boost = check_dangerous_patterns(
+        domain_risk,
+        payment_flag,
+        email_risk,
+        nlp_risk
+    )
+
+    complaint_risk = check_complaint_database(
+        url,
+        data["emails"],
+        data["phones"]
+    )
+
+    similarity_risk = check_text_similarity(data["text"])
+    geo_risk = check_geo_risk(url)
+
+    contact_risk = check_contact_behavior(
+        data["text"],
+        data["emails"],
+        data["phones"]
+    )
+
+    interview_risk = check_interview_anomalies(data["text"])
+
+    company_risk = check_company_authenticity(
+        data["text"],
+        data["title"],
+        data["links"],
+        domain_risk
+    )
+
+    linguistic_risk = check_linguistic_manipulation(
+        data["text"],
+        domain_risk,
+        payment_flag
+    )
+
+    recruiter_risk = check_recruiter_authenticity(
+        data["text"],
+        data["emails"],
+        data["links"],
+        domain_risk,
+        payment_flag,
+        email_risk
+    )
+
+    document_risk = check_document_scam_signals(
+        data["text"],
+        payment_flag,
+        domain_risk
+    )
+
+    # -----------------------------
+    # Feature Dictionary
+    # -----------------------------
+    features = {
+        "domain_risk": domain_risk,
+        "payment_flag": payment_flag,
+        "ssl_risk": ssl_risk,
+        "email_risk": email_risk,
+        "nlp_risk": nlp_risk,
+        "pattern_boost": pattern_boost,
+        "complaint_risk": complaint_risk,
+        "similarity_risk": similarity_risk,
+        "geo_risk": geo_risk,
+        "contact_risk": contact_risk,
+        "interview_risk": interview_risk,
+        "company_risk": company_risk,
+        "linguistic_risk": linguistic_risk,
+        "recruiter_risk": recruiter_risk,
+        "document_risk": document_risk
+    }
+
+    rule_prob = calculate_rule_score(features)
+
+    return features, rule_prob
+
+
 if __name__ == "__main__":
     url = input("Enter Internship URL: ")
 
-    data = fetch_website_data(url)
+    features, rule_prob = run_detection(url)
 
-    if data:
-
-        domain_risk, age_info = check_domain_age(url)
-        payment_flag = check_payment_keywords(data["text"])
-        ssl_risk = check_ssl_certificate(url)
-        email_risk = check_free_email(data["emails"])
-        nlp_risk = check_urgency_language(data["text"])
-
-        pattern_boost = check_dangerous_patterns(
-            domain_risk,
-            payment_flag,
-            email_risk,
-            nlp_risk
-        )
-
-        complaint_risk = check_complaint_database(
-            url,
-            data["emails"],
-            data["phones"]
-        )
-
-        similarity_risk = check_text_similarity(data["text"])
-        geo_risk = check_geo_risk(url)
-
-        contact_risk = check_contact_behavior(
-            data["text"],
-            data["emails"],
-            data["phones"]
-        )
-
-        interview_risk = check_interview_anomalies(data["text"])
-
-        company_risk = check_company_authenticity(
-            data["text"],
-            data["title"],
-            data["links"],
-            domain_risk
-        )
-
-        linguistic_risk = check_linguistic_manipulation(
-            data["text"],
-            domain_risk,
-            payment_flag
-        )
-
-        recruiter_risk = check_recruiter_authenticity(
-            data["text"],
-            data["emails"],
-            data["links"],
-            domain_risk,
-            payment_flag,
-            email_risk
-        )
-
-        document_risk = check_document_scam_signals(
-            data["text"],
-            payment_flag,
-            domain_risk
-        )
-
-        rule_prob = calculate_rule_score(
-            domain_risk,
-            payment_flag,
-            ssl_risk,
-            email_risk,
-            nlp_risk,
-            pattern_boost,
-            complaint_risk,
-            similarity_risk,
-            geo_risk,
-            contact_risk,
-            interview_risk,
-            company_risk,
-            linguistic_risk,
-            recruiter_risk,
-            document_risk
-        )
-
-        print("\n============================")
-        print("Domain Age:", age_info)
-        print("Emails Found:", data["emails"])
-        print("Phones Found:", data["phones"])
-        print("----------------------------")
-        print("Domain Risk:", domain_risk)
-        print("SSL Risk:", ssl_risk)
-        print("Email Risk:", email_risk)
-        print("NLP Risk:", nlp_risk)
-        print("Pattern Boost:", pattern_boost)
-        print("Complaint Risk:", complaint_risk)
-        print("Similarity Risk:", similarity_risk)
-        print("Geo Risk:", geo_risk)
-        print("Contact Risk:", contact_risk)
-        print("Interview Risk:", interview_risk)
-        print("Company Risk:", company_risk)
-        print("Linguistic Risk:", linguistic_risk)
-        print("Recruiter Risk:", recruiter_risk)
-        print("Document Risk:", document_risk)
-        print("============================")
-
-        print("Fraud Probability:", round(rule_prob * 100, 2), "%")
-
-        if rule_prob >= 0.8:
-            print("Risk Level: VERY HIGH")
-        elif rule_prob >= 0.6:
-            print("Risk Level: HIGH")
-        elif rule_prob >= 0.3:
-            print("Risk Level: MEDIUM")
-        else:
-            print("Risk Level: LOW")
-
-    else:
+    if features is None:
         print("Failed to fetch website.")
+        exit()
+
+    print("\n============================")
+    for key, value in features.items():
+        print(f"{key}: {value}")
+    print("============================")
+
+    print("Fraud Probability:", round(rule_prob * 100, 2), "%")
