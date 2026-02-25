@@ -352,22 +352,48 @@ function AuthPage({ onLogin }) {
   const [resume, setResume] = useState(null);
   const up = (k, v) => setF(p => ({ ...p, [k]: v }));
 
+  // const doLogin = async () => {
+  //   if (!f.email) { setErr("Email required."); return; }
+  //   setLoading(true); setErr("");
+  //   const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ email: f.email, password: f.password }) });
+  //   setLoading(false);
+  //   if (data?.access_token) localStorage.setItem("ih_token", data.access_token);
+  //   onLogin({ name: data?.name || f.email.split("@")[0], email: f.email });
+  // };
   const doLogin = async () => {
-    if (!f.email) { setErr("Email required."); return; }
-    setLoading(true); setErr("");
-    const data = await api("/auth/login", { method: "POST", body: JSON.stringify({ email: f.email, password: f.password }) });
-    setLoading(false);
-    if (data?.token) localStorage.setItem("ih_token", data.token);
-    onLogin({ name: data?.name || f.email.split("@")[0], email: f.email });
-  };
+  if (!f.email || !f.password) {
+    setErr("Email and password required.");
+    return;
+  }
 
+  setLoading(true);
+  setErr("");
+
+  const data = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+      email: f.email,
+      password: f.password
+    })
+  });
+
+  setLoading(false);
+
+  if (!data?.access_token) {
+    setErr("Invalid credentials.");
+    return;
+  }
+
+  localStorage.setItem("ih_token", data.access_token);
+  onLogin({ name: f.email.split("@")[0], email: f.email });
+};
   const doSignup = async () => {
     if (!f.name || !f.email || !f.password) { setErr("All fields required."); return; }
     if (f.password.length < 6) { setErr("Password min 6 chars."); return; }
     setLoading(true); setErr("");
     const data = await api("/auth/signup", { method: "POST", body: JSON.stringify({ name: f.name, email: f.email, password: f.password }) });
     setLoading(false);
-    if (data?.token) localStorage.setItem("ih_token", data.token);
+    if (data?.access_token) localStorage.setItem("ih_token", data.access_token);
     setStep(2);
   };
 
@@ -717,13 +743,16 @@ function Tracker({ apps, setApps, toast }) {
   const save = async () => {
     if (!form.company || !form.role) { toast("Company and role required.", "error"); return; }
     if (editApp) {
-      const data = await api(`/applications/${editApp.id}`, { method: "PUT", body: JSON.stringify(form) });
+      const data = await api(`/applications/${editApp.id}`, { method: "PATCH", body: JSON.stringify({status: form.status}) });
       setApps(p => p.map(a => a.id === editApp.id ? (data || { ...form, id: editApp.id }) : a));
       toast("Application updated!", "success");
     } else {
       const data = await api("/applications", { method: "POST", body: JSON.stringify(form) });
       const now = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      setApps(p => [data || { ...form, id: Date.now(), date: now }, ...p]);
+      // setApps(p => [data || { ...form, id: Date.now(), date: now }, ...p]);
+      if (data) {
+        setApps(p => [data, ...p]);
+      }
       toast("Application added!", "success");
     }
     setModal(false);
@@ -1102,15 +1131,105 @@ function Profile({ user, setUser, onLogout, toast }) {
 }
 
 /* ── APP SHELL ───────────────────────────────────────────────────────────────── */
+// export default function App() {
+//   const [authed, setAuthed] = useState(false);
+//   const [user, setUser] = useState({ name: "", email: "" });
+//   const [page, setPage] = useState("dashboard");
+//   const [apps, setApps] = useState(INIT_APPS);
+//   const { toasts, toast } = useToast();
+
+//   const login = u => { setUser(u); setAuthed(true); setPage("dashboard"); };
+//   const logout = () => { localStorage.removeItem("ih_token"); setAuthed(false); toast("Signed out.", "info"); };
+
+//   const nav = [
+//     { id: "dashboard", label: "Dashboard", Icon: Home },
+//     { id: "truthlens", label: "TruthLens", Icon: Shield, badge: "NEW" },
+//     { id: "tracker", label: "Tracker", Icon: Brief, count: apps.filter(a => a.status === "applied").length },
+//     { id: "ats", label: "ATS Checker", Icon: FileT },
+//     { id: "profile", label: "Profile", Icon: UserIc },
+//   ];
+
+//   if (!authed) return (
+//     <>
+//       <style>{CSS}</style>
+//       <AuthPage onLogin={login} />
+//       <Toasts list={toasts} />
+//     </>
+//   );
+
+//   return (
+//     <>
+//       <style>{CSS}</style>
+//       <div className="app">
+//         <nav className="sidebar">
+//           <div className="s-logo">
+//             <div className="logo-icon">IH</div>
+//             <span className="logo-text">Intern<span>Hub</span></span>
+//           </div>
+//           <div className="nav-section">
+//             <div className="nav-lbl">Navigation</div>
+//             {nav.map(n => (
+//               <button key={n.id} className={`nav-btn ${page === n.id ? "active" : ""}`} onClick={() => setPage(n.id)}>
+//                 <span className="nav-icon"><n.Icon /></span>
+//                 {n.label}
+//                 {n.badge && <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, background: "rgba(245,166,35,.2)", color: "var(--amber)", padding: "2px 7px", borderRadius: 20 }}>{n.badge}</span>}
+//                 {n.count > 0 && !n.badge && <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, background: "var(--bg3)", color: "var(--muted)", padding: "2px 8px", borderRadius: 20 }}>{n.count}</span>}
+//               </button>
+//             ))}
+//           </div>
+//           <div className="s-user">
+//             <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{user.name?.[0]?.toUpperCase() || "U"}</div>
+//             <div style={{ flex: 1, overflow: "hidden" }}>
+//               <div className="user-name">{user.name}</div>
+//               <div className="user-role">{user.email}</div>
+//             </div>
+//           </div>
+//         </nav>
+
+//         <main className="main">
+//           {page === "dashboard" && <Dashboard apps={apps} goTo={setPage} />}
+//           {page === "truthlens" && <TruthLens toast={toast} />}
+//           {page === "tracker" && <Tracker apps={apps} setApps={setApps} toast={toast} />}
+//           {page === "ats" && <ATSChecker toast={toast} />}
+//           {page === "profile" && <Profile user={user} setUser={setUser} onLogout={logout} toast={toast} />}
+//         </main>
+//       </div>
+//       <Toasts list={toasts} />
+//     </>
+//   );
+// }
+
 export default function App() {
-  const [authed, setAuthed] = useState(false);
+  const [authed, setAuthed] = useState(!!localStorage.getItem("ih_token"));
   const [user, setUser] = useState({ name: "", email: "" });
   const [page, setPage] = useState("dashboard");
-  const [apps, setApps] = useState(INIT_APPS);
+  const [apps, setApps] = useState([]);
   const { toasts, toast } = useToast();
 
-  const login = u => { setUser(u); setAuthed(true); setPage("dashboard"); };
-  const logout = () => { localStorage.removeItem("ih_token"); setAuthed(false); toast("Signed out.", "info"); };
+  const login = u => {
+    setUser(u);
+    setAuthed(true);
+    setPage("dashboard");
+  };
+
+  const logout = () => {
+    localStorage.removeItem("ih_token");
+    setAuthed(false);
+    setApps([]);
+    toast("Signed out.", "info");
+  };
+
+  // FETCH APPLICATIONS FROM BACKEND AFTER LOGIN
+  useEffect(() => {
+    const fetchApps = async () => {
+      const data = await api("/applications/");
+      if (data) setApps(data);
+    };
+
+    if (authed) {
+      fetchApps();
+    }
+  }, [authed]);
 
   const nav = [
     { id: "dashboard", label: "Dashboard", Icon: Home },
@@ -1120,13 +1239,14 @@ export default function App() {
     { id: "profile", label: "Profile", Icon: UserIc },
   ];
 
-  if (!authed) return (
-    <>
-      <style>{CSS}</style>
-      <AuthPage onLogin={login} />
-      <Toasts list={toasts} />
-    </>
-  );
+  if (!authed)
+    return (
+      <>
+        <style>{CSS}</style>
+        <AuthPage onLogin={login} />
+        <Toasts list={toasts} />
+      </>
+    );
 
   return (
     <>
@@ -1137,19 +1257,51 @@ export default function App() {
             <div className="logo-icon">IH</div>
             <span className="logo-text">Intern<span>Hub</span></span>
           </div>
+
           <div className="nav-section">
             <div className="nav-lbl">Navigation</div>
             {nav.map(n => (
-              <button key={n.id} className={`nav-btn ${page === n.id ? "active" : ""}`} onClick={() => setPage(n.id)}>
+              <button
+                key={n.id}
+                className={`nav-btn ${page === n.id ? "active" : ""}`}
+                onClick={() => setPage(n.id)}
+              >
                 <span className="nav-icon"><n.Icon /></span>
                 {n.label}
-                {n.badge && <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, background: "rgba(245,166,35,.2)", color: "var(--amber)", padding: "2px 7px", borderRadius: 20 }}>{n.badge}</span>}
-                {n.count > 0 && !n.badge && <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, background: "var(--bg3)", color: "var(--muted)", padding: "2px 8px", borderRadius: 20 }}>{n.count}</span>}
+                {n.badge && (
+                  <span style={{
+                    marginLeft: "auto",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: "rgba(245,166,35,.2)",
+                    color: "var(--amber)",
+                    padding: "2px 7px",
+                    borderRadius: 20
+                  }}>
+                    {n.badge}
+                  </span>
+                )}
+                {n.count > 0 && !n.badge && (
+                  <span style={{
+                    marginLeft: "auto",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: "var(--bg3)",
+                    color: "var(--muted)",
+                    padding: "2px 8px",
+                    borderRadius: 20
+                  }}>
+                    {n.count}
+                  </span>
+                )}
               </button>
             ))}
           </div>
+
           <div className="s-user">
-            <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>{user.name?.[0]?.toUpperCase() || "U"}</div>
+            <div className="avatar" style={{ width: 34, height: 34, fontSize: 13 }}>
+              {user.name?.[0]?.toUpperCase() || "U"}
+            </div>
             <div style={{ flex: 1, overflow: "hidden" }}>
               <div className="user-name">{user.name}</div>
               <div className="user-role">{user.email}</div>
@@ -1162,9 +1314,17 @@ export default function App() {
           {page === "truthlens" && <TruthLens toast={toast} />}
           {page === "tracker" && <Tracker apps={apps} setApps={setApps} toast={toast} />}
           {page === "ats" && <ATSChecker toast={toast} />}
-          {page === "profile" && <Profile user={user} setUser={setUser} onLogout={logout} toast={toast} />}
+          {page === "profile" && (
+            <Profile
+              user={user}
+              setUser={setUser}
+              onLogout={logout}
+              toast={toast}
+            />
+          )}
         </main>
       </div>
+
       <Toasts list={toasts} />
     </>
   );
