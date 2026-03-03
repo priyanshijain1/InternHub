@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models.application import Application
 from models.user import User
-from schemas.application import ApplicationCreate, ApplicationUpdate
+from schemas.application import ApplicationCreate, ApplicationResponse, ApplicationUpdate
 from core.security import decode_token
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -35,7 +35,7 @@ def get_current_user(
 
     return user
 
-@router.get("/")
+@router.get("/", response_model=list[ApplicationResponse])
 def get_applications(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -44,7 +44,7 @@ def get_applications(
         Application.user_id == current_user.id
     ).all()
 
-@router.post("/")
+@router.post("/", response_model=ApplicationResponse)
 def create_application(
     app: ApplicationCreate,
     db: Session = Depends(get_db),
@@ -54,6 +54,11 @@ def create_application(
         company=app.company,
         role=app.role,
         status=app.status,
+        stipend=app.stipend,
+        location=app.location,
+        via=app.via,
+        notes=app.notes,
+        date=app.date,
         user_id=current_user.id
     )
 
@@ -63,7 +68,7 @@ def create_application(
 
     return new_app
 
-@router.patch("/{id}")
+@router.patch("/{id}", response_model=ApplicationResponse)
 def update_application(
     id: int,
     app: ApplicationUpdate,

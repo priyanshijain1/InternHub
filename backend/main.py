@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from models import user, application
 from routers import auth, applications
+from routers import profile
 
 app = FastAPI()
 
@@ -16,6 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(profile.router, prefix="/api/profile", tags=["Profile"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
 
