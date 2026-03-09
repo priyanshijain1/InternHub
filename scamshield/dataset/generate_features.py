@@ -8,9 +8,10 @@ import pandas as pd
 from model.feature_schema import FEATURE_NAMES
 from app import run_detection
 
+BASE_DIR = os.path.dirname(__file__)
 
-INPUT_FILE = "dataset/raw_dataset.csv"
-OUTPUT_FILE = "dataset/processed_dataset.csv"
+INPUT_FILE = os.path.join(BASE_DIR, "final_real_fraud_dataset.csv")
+OUTPUT_FILE = os.path.join(BASE_DIR, "processed_dataset.csv")
 
 
 def generate():
