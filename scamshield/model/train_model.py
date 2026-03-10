@@ -1,54 +1,51 @@
-# model/train_model.py
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pandas as pd
 import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
-
-from model.feature_schema import FEATURE_NAMES
+from sklearn.metrics import classification_report
 
 
-MODEL_PATH = "model/fraud_model.pkl"
+DATA_FILE = "dataset/processed_dataset.csv"
+MODEL_FILE = "model/fraud_model.pkl"
 
 
 def train():
 
-    # Load processed dataset
-    df = pd.read_csv("dataset/processed_dataset.csv")
+    print("Loading dataset...")
+    df = pd.read_csv(DATA_FILE)
 
-    # Features & Label
-    X = df[FEATURE_NAMES]
+    X = df.drop("label", axis=1)
     y = df["label"]
 
-    # Split
+    print("Splitting dataset...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y
+        X, y, test_size=0.2, random_state=42
     )
 
-    # Model
+    print("Training model...")
     model = RandomForestClassifier(
         n_estimators=200,
-        max_depth=6,
+        max_depth=12,
         random_state=42
     )
 
     model.fit(X_train, y_train)
 
-    # Evaluate
-    y_pred = model.predict(X_test)
+    print("Evaluating model...")
+    predictions = model.predict(X_test)
 
-    print("\nModel Evaluation:")
-    print("Accuracy:", accuracy_score(y_test, y_pred))
-    print(classification_report(y_test, y_pred))
+    print(classification_report(y_test, predictions))
 
-    # Save model
-    joblib.dump(model, MODEL_PATH)
-    print(f"\nModel saved to {MODEL_PATH}")
+    print("Saving model...")
+    joblib.dump(model, MODEL_FILE)
+
+    print("✅ Model saved:", MODEL_FILE)
 
 
 if __name__ == "__main__":

@@ -16,19 +16,20 @@ from feature_engine.linguistic_layer import check_linguistic_manipulation
 from feature_engine.recruiter_layer import check_recruiter_authenticity
 from feature_engine.document_layer import check_document_scam_signals
 
-from risk_engine.rule_engine import calculate_rule_score
+from risk_engine.hybrid_engine import calculate_hybrid_score
 
 
 def run_detection(url, manual_text=None):
     """
-    If manual_text is provided → dataset mode (no scraping).
-    Otherwise → normal website detection mode.
+    manual_text → dataset mode (no scraping)
+    url only → full website detection
     """
 
     # -----------------------------
     # Dataset Mode (NO scraping)
     # -----------------------------
     if manual_text is not None:
+
         data = {
             "url": url,
             "title": "",
@@ -40,18 +41,30 @@ def run_detection(url, manual_text=None):
             "form_count": 0,
             "script_count": 0
         }
+
+    # -----------------------------
+    # Website Mode
+    # -----------------------------
     else:
+
         data = fetch_website_data(url)
+
         if not data:
             return None, None
+
 
     # -----------------------------
     # Feature Extraction
     # -----------------------------
+
     domain_risk, age_info = check_domain_age(url)
+
     payment_flag = check_payment_keywords(data["text"])
+
     ssl_risk = check_ssl_certificate(url)
+
     email_risk = check_free_email(data["emails"])
+
     nlp_risk = check_urgency_language(data["text"])
 
     pattern_boost = check_dangerous_patterns(
@@ -68,6 +81,7 @@ def run_detection(url, manual_text=None):
     )
 
     similarity_risk = check_text_similarity(data["text"])
+
     geo_risk = check_geo_risk(url)
 
     contact_risk = check_contact_behavior(
@@ -106,10 +120,13 @@ def run_detection(url, manual_text=None):
         domain_risk
     )
 
+
     # -----------------------------
     # Feature Dictionary
     # -----------------------------
+
     features = {
+
         "domain_risk": domain_risk,
         "payment_flag": payment_flag,
         "ssl_risk": ssl_risk,
@@ -125,25 +142,45 @@ def run_detection(url, manual_text=None):
         "linguistic_risk": linguistic_risk,
         "recruiter_risk": recruiter_risk,
         "document_risk": document_risk
+
     }
 
-    rule_prob = calculate_rule_score(features)
 
-    return features, rule_prob
+    # -----------------------------
+    # Hybrid Risk Engine
+    # -----------------------------
 
+    result = calculate_hybrid_score(features)
+
+    return features, result
+
+
+# -----------------------------
+# CLI TEST MODE
+# -----------------------------
 
 if __name__ == "__main__":
+
     url = input("Enter Internship URL: ")
 
-    features, rule_prob = run_detection(url)
+    features, result = run_detection(url)
 
     if features is None:
-        print("Failed to fetch website.")
+        print("❌ Failed to fetch website.")
         exit()
 
-    print("\n============================")
+    print("\n===============================")
+    print("Extracted Features")
+    print("===============================")
+
     for key, value in features.items():
         print(f"{key}: {value}")
-    print("============================")
 
-    print("Fraud Probability:", round(rule_prob * 100, 2), "%")
+    print("\n===============================")
+    print("Fraud Analysis Result")
+    print("===============================")
+
+    print("Rule Score :", result["rule_score"])
+    print("ML Score   :", result["ml_score"])
+    print("Final Score:", result["final_score"])
+    print("Label      :", result["label"])
