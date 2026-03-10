@@ -1,127 +1,23 @@
 import re
 
-# domains that are NOT job related
-IGNORE_DOMAINS = [
-    "codeforces",
-    "github",
-    "stackexchange",
-    "newsletter",
-    "medium",
-    "youtube",
-    "twitter",
-    "discord"
-]
 
-STATUS_PATTERNS = {
-    "applied": [
-        "thank you for applying",
-        "application received",
-        "we received your application",
-        "thanks for applying",
-        "your application has been received"
-    ],
+def rule_based_parser(subject, body):
 
-    "oa": [
-        "online assessment",
-        "coding challenge",
-        "hackerrank",
-        "codesignal",
-        "codility",
-        "assessment",
-        "take home assignment"
-    ],
+    text = (subject + " " + body).lower()
 
-    "interview": [
-        "interview",
-        "schedule your interview",
-        "interview round",
-        "technical interview",
-        "next round interview"
-    ],
+    if "online assessment" in text or "coding test" in text:
+        return "oa"
 
-    "offer": [
-        "offer letter",
-        "we are pleased to offer",
-        "offer of employment",
-        "congratulations"
-    ],
+    if "interview" in text or "schedule" in text:
+        return "interview"
 
-    "rejected": [
-        "regret to inform",
-        "unfortunately",
-        "not moving forward",
-        "not selected"
-    ]
-}
+    if "regret to inform" in text or "unfortunately" in text:
+        return "rejection"
 
+    if "congratulations" in text or "offer" in text:
+        return "offer"
 
-def detect_status(text):
-
-    text = text.lower()
-
-    for status, keywords in STATUS_PATTERNS.items():
-        for word in keywords:
-            if word in text:
-                return status
+    if "application received" in text or "thanks for applying" in text:
+        return "applied"
 
     return None
-
-
-def extract_company_from_sender(sender):
-
-    # Example: Google Careers <careers@google.com>
-
-    email_match = re.search(r"<(.+?)>", sender)
-
-    if email_match:
-        sender = email_match.group(1)
-
-    domain_match = re.search(r"@([a-zA-Z0-9.-]+)", sender)
-
-    if not domain_match:
-        return None
-
-    domain = domain_match.group(1)
-
-    company = domain.split(".")[0]
-
-    company = company.replace("jobs", "")
-    company = company.replace("careers", "")
-    company = company.replace("noreply", "")
-
-    # ignore domains like codeforces
-    if company.lower() in IGNORE_DOMAINS:
-        return None
-
-    return company.capitalize()
-
-
-def parse_email(subject, snippet, sender):
-
-    text = f"{subject} {snippet}".lower()
-
-    # check if email even looks like a job email
-    job_keywords = [
-        "application",
-        "interview",
-        "assessment",
-        "hiring",
-        "position",
-        "recruiter",
-        "job"
-    ]
-
-    if not any(word in text for word in job_keywords):
-        return {
-            "company": None,
-            "status": None
-        }
-
-    status = detect_status(text)
-
-    company = extract_company_from_sender(sender)
-
-    return {
-        "company": company,
-        "status": status
-    }

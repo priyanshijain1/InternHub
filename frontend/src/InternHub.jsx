@@ -524,7 +524,7 @@ function AuthPage({ onLogin }) {
 }
 
 /* ── DASHBOARD ───────────────────────────────────────────────────────────────── */
-function Dashboard({ apps, goTo }) {
+function Dashboard({ apps, goTo, connectGmail, scanGmail, scanLoading }) {
   const cnt = s => apps.filter(a => a.status === s).length;
   const stats = [
     { v: apps.length, l: "Total Applications", note: `${apps.filter(a => ["Feb 14","Feb 17"].includes(a.date)).length} added recently`, col: "var(--text)" },
@@ -537,7 +537,23 @@ function Dashboard({ apps, goTo }) {
     <div className="fin">
       <div className="topbar">
         <div><h1 className="page-title">Dashboard 👋</h1><p className="page-sub">Your placement overview at a glance.</p></div>
-        <button className="btn btn-p" onClick={() => goTo("tracker")}><Plus /> Add Application</button>
+        <div className="tbar-right">
+        <button className="btn btn-g" onClick={connectGmail}>
+          Connect Gmail
+        </button>
+
+        <button
+          className="btn btn-p"
+          onClick={scanGmail}
+          disabled={scanLoading}
+        >
+          {scanLoading ? <><Spin /> Scanning</> : "Scan Gmail"}
+        </button>
+
+        <button className="btn btn-g" onClick={() => goTo("tracker")}>
+          <Plus /> Add Application
+        </button>
+      </div>
       </div>
       <div className="g4 mb8">
         {stats.map((s, i) => (
@@ -1206,6 +1222,9 @@ export default function App() {
   const [apps, setApps] = useState([]);
   const { toasts, toast } = useToast();
 
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+
   const login = u => {
     setUser(u);
     setAuthed(true);
@@ -1218,7 +1237,51 @@ export default function App() {
     setApps([]);
     toast("Signed out.", "info");
   };
+  // CONNECT GMAIL
+const connectGmail = async () => {
+  const res = await api("/gmail/connect");
 
+  if (!res?.auth_url) {
+    toast("Failed to connect Gmail", "error");
+    return;
+  }
+
+  window.location.href = res.auth_url;
+};
+
+// SCAN EMAILS
+const scanGmail = async () => {
+  setScanLoading(true);
+
+  const data = await api("/gmail/scan");
+
+  setScanLoading(false);
+
+  if (!data) {
+    toast("Scan failed", "error");
+    return;
+  }
+
+  toast(`Scanned ${data.emails_scanned} emails`, "success");
+
+  if (!data.updates_detected?.length) {
+    toast("No internship updates detected", "info");
+    return;
+  }
+
+  const newApps = data.updates_detected.map((u, i) => ({
+    id: Date.now() + i,
+    company: u.company,
+    role: u.role || "Intern",
+    status: u.status || "applied",
+    date: "Today",
+    location: "-",
+    stipend: "-",
+    via: "Gmail Auto Import"
+  }));
+
+  setApps(prev => [...newApps, ...prev]);
+};
   // FETCH APPLICATIONS FROM BACKEND AFTER LOGIN
   useEffect(() => {
     const fetchApps = async () => {
@@ -1310,7 +1373,15 @@ export default function App() {
         </nav>
 
         <main className="main">
-          {page === "dashboard" && <Dashboard apps={apps} goTo={setPage} />}
+          {page === "dashboard" && (
+            <Dashboard
+              apps={apps}
+              goTo={setPage}
+              connectGmail={connectGmail}
+              scanGmail={scanGmail}
+              scanLoading={scanLoading}
+            />
+          )}
           {page === "truthlens" && <TruthLens toast={toast} />}
           {page === "tracker" && <Tracker apps={apps} setApps={setApps} toast={toast} />}
           {page === "ats" && <ATSChecker toast={toast} />}
