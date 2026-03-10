@@ -722,8 +722,8 @@ function TruthLens({ toast }) {
                 </div>
               </div>
               <div className="card">
-                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Risk Flags ({result.flags.length})</h3>
-                {result.flags.map((fl, i) => (
+                <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>Risk Flags ({result.flags?.length || 0})</h3>
+                {(result.flags || []).map((fl, i) => (
                   <div key={i} className={`flag ${fl.t}`}>
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{fl.icon}</span>
                     <div><div className="flag-lbl">{fl.label}</div><div className="flag-det">{fl.detail}</div></div>
