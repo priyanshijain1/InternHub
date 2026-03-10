@@ -24,5 +24,8 @@ class User(Base):
     publicProfile = Column(Boolean, default=False)
 
     resume_filename = Column(String, nullable=True)
+    gmail_connected = Column(Boolean, default=False)
+    gmail_refresh_token = Column(String, nullable=True)
+
 
     applications = relationship("Application", back_populates="user")
