@@ -3,8 +3,48 @@ from bs4 import BeautifulSoup
 import re
 
 
-def fetch_website_data(url):
+def fetch_website_data(url=None, description=None):
+
+    # -----------------------------------
+    # DESCRIPTION ONLY MODE
+    # -----------------------------------
+    if (url is None or url.strip() == "") and description:
+
+        text = description
+
+        emails = re.findall(
+            r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+",
+            text
+        )
+
+        raw_phones = re.findall(r'\+?\d[\d\s\-]{8,14}\d', text)
+
+        cleaned_phones = []
+        for phone in raw_phones:
+            digits_only = re.sub(r'\D', '', phone)
+            if 10 <= len(digits_only) <= 13:
+                cleaned_phones.append(phone)
+
+        phones = list(set(cleaned_phones))
+
+        return {
+            "url": "manual_input",
+            "title": "",
+            "text": text,
+            "meta_descriptions": [],
+            "emails": emails,
+            "phones": phones,
+            "links": [],
+            "form_count": 0,
+            "script_count": 0
+        }
+
+
+    # -----------------------------------
+    # WEBSITE SCRAPING MODE
+    # -----------------------------------
     try:
+
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
@@ -19,6 +59,10 @@ def fetch_website_data(url):
         # Extract visible text
         # ----------------------------
         text = soup.get_text(separator=" ", strip=True)
+
+        # If description also given → combine
+        if description:
+            text = text + " " + description
 
         # ----------------------------
         # Extract title
@@ -44,7 +88,7 @@ def fetch_website_data(url):
         emails = list(set(emails))
 
         # ----------------------------
-        # Extract Valid Phone Numbers (Improved)
+        # Extract Valid Phone Numbers
         # ----------------------------
         raw_phones = re.findall(r'\+?\d[\d\s\-]{8,14}\d', html)
 
@@ -53,10 +97,8 @@ def fetch_website_data(url):
         for phone in raw_phones:
             phone = phone.strip()
 
-            # Remove non-digits
             digits_only = re.sub(r'\D', '', phone)
 
-            # Keep only realistic phone numbers (10–13 digits)
             if 10 <= len(digits_only) <= 13:
                 cleaned_phones.append(phone)
 

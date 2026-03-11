@@ -19,49 +19,25 @@ from feature_engine.document_layer import check_document_scam_signals
 from risk_engine.hybrid_engine import calculate_hybrid_score
 
 
-def run_detection(url, manual_text=None):
-    """
-    manual_text → dataset mode (no scraping)
-    url only → full website detection
-    """
+def run_detection(url=None, description=None):
 
     # -----------------------------
-    # Dataset Mode (NO scraping)
+    # Fetch data from scraper
     # -----------------------------
-    if manual_text is not None:
+    data = fetch_website_data(url, description)
 
-        data = {
-            "url": url,
-            "title": "",
-            "text": manual_text,
-            "meta_descriptions": [],
-            "emails": [],
-            "phones": [],
-            "links": [],
-            "form_count": 0,
-            "script_count": 0
-        }
-
-    # -----------------------------
-    # Website Mode
-    # -----------------------------
-    else:
-
-        data = fetch_website_data(url)
-
-        if not data:
-            return None, None
-
+    if not data:
+        return None, None
 
     # -----------------------------
     # Feature Extraction
     # -----------------------------
 
-    domain_risk, age_info = check_domain_age(url)
+    domain_risk, age_info = check_domain_age(data["url"])
 
     payment_flag = check_payment_keywords(data["text"])
 
-    ssl_risk = check_ssl_certificate(url)
+    ssl_risk = check_ssl_certificate(data["url"])
 
     email_risk = check_free_email(data["emails"])
 
@@ -75,14 +51,14 @@ def run_detection(url, manual_text=None):
     )
 
     complaint_risk = check_complaint_database(
-        url,
+        data["url"],
         data["emails"],
         data["phones"]
     )
 
     similarity_risk = check_text_similarity(data["text"])
 
-    geo_risk = check_geo_risk(url)
+    geo_risk = check_geo_risk(data["url"])
 
     contact_risk = check_contact_behavior(
         data["text"],
@@ -120,7 +96,6 @@ def run_detection(url, manual_text=None):
         domain_risk
     )
 
-
     # -----------------------------
     # Feature Dictionary
     # -----------------------------
@@ -145,9 +120,25 @@ def run_detection(url, manual_text=None):
 
     }
 
+    # -----------------------------
+    # Description-only penalty rule
+    # -----------------------------
+
+    if url is None:
+
+        no_links = len(data["links"]) == 0
+        no_emails = len(data["emails"]) == 0
+        no_phones = len(data["phones"]) == 0
+
+        if no_links and no_emails and no_phones:
+
+            print("⚠ No company contact information detected")
+
+            features["contact_risk"] = min(features["contact_risk"] + 0.5, 1.0)
+            features["company_risk"] = min(features["company_risk"] + 0.4, 1.0)
 
     # -----------------------------
-    # Hybrid Risk Engine
+    # Hybrid Engine
     # -----------------------------
 
     result = calculate_hybrid_score(features)
@@ -161,12 +152,26 @@ def run_detection(url, manual_text=None):
 
 if __name__ == "__main__":
 
-    url = input("Enter Internship URL: ")
+    print("\nInternship Fraud Detection System")
+    print("----------------------------------")
 
-    features, result = run_detection(url)
+    url = input("Enter Internship URL (optional): ").strip()
+    description = input("Enter Internship Description (optional): ").strip()
+
+    if url == "":
+        url = None
+
+    if description == "":
+        description = None
+
+    if url is None and description is None:
+        print("⚠ Please provide URL or description")
+        exit()
+
+    features, result = run_detection(url, description)
 
     if features is None:
-        print("❌ Failed to fetch website.")
+        print("❌ Failed to fetch data")
         exit()
 
     print("\n===============================")
