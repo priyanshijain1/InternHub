@@ -1,39 +1,53 @@
 import os
-import google.generativeai as genai
+import json
+from google import genai
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-model = genai.GenerativeModel("gemini-pro")
-
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 def parse_email_with_ai(subject, sender, body):
 
     prompt = f"""
-You are an AI that extracts internship updates from emails.
+Extract internship update info from this email.
 
-Return JSON only.
+Return ONLY JSON:
 
-Fields:
-company
-role
-stage (applied, oa, interview, rejection, offer, unknown)
+{{
+"company":"",
+"role":"",
+"stage":""
+}}
 
-Email Subject:
-{subject}
+Stage must be one of:
+applied
+oa
+interview
+offer
+rejection
+unknown
 
-Sender:
-{sender}
-
-Email Body:
-{body}
+Subject: {subject}
+Sender: {sender}
+Body: {body}
 """
 
-    response = model.generate_content(prompt)
-
-    text = response.text.strip()
-
     try:
-        import json
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+
+        text = response.text.strip()
+        text = text.replace("```json","").replace("```","")
+
         return json.loads(text)
-    except:
-        return None
+
+    except Exception as e:
+
+        print("AI parser failed:", e)
+
+        return {
+            "company": "Unknown",
+            "role": "Intern",
+            "stage": "unknown"
+        }

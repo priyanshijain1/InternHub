@@ -330,7 +330,7 @@ def scan_emails(
         status = parsed["status"]
 
         existing = db.query(Application).filter(
-            Application.company == company,
+            Application.company.ilike(f"%{company}%"),
             Application.user_id == current_user.id
         ).first()
 

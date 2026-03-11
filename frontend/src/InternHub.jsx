@@ -5,14 +5,33 @@ const API_BASE = "http://localhost:8000/api";
 const getToken = () => localStorage.getItem("ih_token");
 
 async function api(path, opts = {}) {
+
+  const token = localStorage.getItem("ih_token")
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  }
+
   try {
-    const headers = { "Content-Type": "application/json", ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}), ...(opts.headers || {}) };
-    const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
-    if (!res.ok) throw new Error(res.status);
-    return await res.json();
-  } catch (e) {
-    console.warn(`[API] ${path} failed — using mock data`, e.message);
-    return null;
+
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("API ERROR:", data)
+      return null
+    }
+
+    return data
+
+  } catch (err) {
+    console.error("NETWORK ERROR:", err)
+    return null
   }
 }
 
@@ -406,7 +425,7 @@ function AuthPage({ onLogin }) {
   const doResume = async file => {
     setResume(file);
     const fd = new FormData(); fd.append("resume", file);
-    await apiFile("/resume/upload", fd);
+    await apiFile("/profile/resume", fd)
   };
 
   const addSkill = () => { const s = ski.trim(); if (s && !skills.includes(s)) setSkills(p => [...p, s]); setSki(""); };
