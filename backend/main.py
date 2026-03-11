@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from models import user, application, oauth_state
+from routers import gmail
 from routers import auth, applications
 from routers import profile, scamshield
 from dotenv import load_dotenv
@@ -22,7 +23,7 @@ app.add_middleware(
 app.include_router(profile.router, prefix="/api/profile", tags=["Profile"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
-#app.include_router(gmail.router, prefix="/api/gmail", tags=["Gmail"])
+app.include_router(gmail.router, prefix="/api/gmail", tags=["Gmail"])
 app.include_router(scamshield.router, prefix="/api/scamshield", tags=["ScamShield"])
 @app.get("/")
 def root():
